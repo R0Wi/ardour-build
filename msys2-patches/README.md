@@ -1,0 +1,1 @@
+Patches to be applied onto `ardour` source before building for Windows

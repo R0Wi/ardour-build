@@ -1,0 +1,184 @@
+name: Build Ardour for Windows
+
+env:
+  CC: gcc
+  CXX: g++
+  CPP: cpp
+  AR: ar
+  LD: ld
+  NM: nm
+  AS: as
+  STRIP: strip
+  WINRC: windres
+  RANLIB: ranlib
+  DLLTOOL: dlltool
+
+on:
+  push:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    name: Build on Windows
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+    - name: Setup msys2 environment
+      uses: msys2/setup-msys2@v2
+      with:
+       # update: true
+        install: >-
+          mingw-w64-x86_64-toolchain
+          python3
+          python3-setuptools
+          mingw-w64-x86_64-python3
+          mingw-w64-x86_64-python3-setuptools
+          pkg-config
+          mingw-w64-x86_64-pkg-config
+          autoconf
+          automake
+          perl
+          gtk-doc
+          flex
+          bison
+          patch
+          libtool
+          mingw-w64-x86_64-libtool
+          wget
+          git
+          nasm
+          mingw-w64-x86_64-nasm
+          dos2unix
+          unzip
+          mingw-w64-x86_64-cmake
+          mingw-w64-x86_64-atk
+          mingw-w64-x86_64-atkmm
+          mingw-w64-x86_64-aubio
+          mingw-w64-x86_64-autotools
+          mingw-w64-x86_64-boost
+          mingw-w64-x86_64-cairo
+          mingw-w64-x86_64-cairomm
+          mingw-w64-x86_64-cmake
+          mingw-w64-x86_64-cmake
+          mingw-w64-x86_64-cppunit
+          mingw-w64-x86_64-curl
+          mingw-w64-x86_64-expat
+          mingw-w64-x86_64-fftw
+          mingw-w64-x86_64-flac
+          mingw-w64-x86_64-fontconfig
+          mingw-w64-x86_64-freetype
+          mingw-w64-x86_64-gettext
+          mingw-w64-x86_64-glib2
+          mingw-w64-x86_64-glibmm
+          mingw-w64-x86_64-gnome-common
+          mingw-w64-x86_64-gobject-introspection
+          mingw-w64-x86_64-gtk-doc
+          mingw-w64-x86_64-gtk-engines
+          mingw-w64-x86_64-gtkmm
+          mingw-w64-x86_64-harfbuzz
+          mingw-w64-x86_64-itstool
+          mingw-w64-x86_64-libarchive
+          mingw-w64-x86_64-libffi
+          mingw-w64-x86_64-libiconv
+          mingw-w64-x86_64-liblo
+          mingw-w64-x86_64-libogg
+          mingw-w64-x86_64-libpng
+          mingw-w64-x86_64-libsamplerate
+          mingw-w64-x86_64-libsigc++
+          mingw-w64-x86_64-libsndfile
+          mingw-w64-x86_64-libtool
+          mingw-w64-x86_64-libusb
+          mingw-w64-x86_64-libvorbis
+          mingw-w64-x86_64-libwebsockets
+          mingw-w64-x86_64-libxml2
+          mingw-w64-x86_64-libxslt
+          mingw-w64-x86_64-lilv
+          mingw-w64-x86_64-lv2
+          mingw-w64-x86_64-make
+          mingw-w64-x86_64-opus
+          mingw-w64-x86_64-pango
+          mingw-w64-x86_64-pangomm
+          mingw-w64-x86_64-pcre
+          mingw-w64-x86_64-pixman
+          mingw-w64-x86_64-portaudio
+          mingw-w64-x86_64-readline
+          mingw-w64-x86_64-rubberband
+          mingw-w64-x86_64-serd
+          mingw-w64-x86_64-sord
+          mingw-w64-x86_64-libsndfile
+          mingw-w64-x86_64-sratom
+          mingw-w64-x86_64-taglib
+          mingw-w64-x86_64-termcap
+          mingw-w64-x86_64-vamp-plugin-sdk
+          mingw-w64-x86_64-xz
+          mingw-w64-x86_64-zlib
+          mingw-w64-x86_64-drmingw
+          mingw-w64-x86_64-fmt
+
+    - name: TMP
+      run: x86_64-w64-mingw32-gcc --version || ${{ runner.temp }}/msys64/mingw64/bin/x86_64-w64-mingw32-gcc --version
+
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Checkout Ardour source code
+      run: git clone -b 7.2 --depth 1 https://git.ardour.org/ardour/ardour.git ardour
+
+    - name: Build portaudio with ASIO support
+      working-directory: ./msys2-packages/mingw-w64-portaudio
+      run: dos2unix * && MINGW_ARCH=mingw64 makepkg-mingw -sLf
+
+    - name: Install portaudio with ASIO support
+      working-directory: ./msys2-packages/mingw-w64-portaudio
+      run: pacman -U --noconfirm mingw-w64-x86_64-portaudio-*.pkg.tar.zst
+
+    - name: Patch Ardour for Windows msys2
+      working-directory: ./ardour
+      run: patch -p1 < ../msys2-patches/ardour7.2-win.patch
+
+    - name: Configure Ardour
+      working-directory: ./ardour
+      run: |
+        CC=${{ runner.temp }}/msys64/mingw64/bin/x86_64-w64-mingw32-gcc \
+        CXX=${{ runner.temp }}/msys64/mingw64/bin/x86_64-w64-mingw32-g++ \
+        CPP=${{ runner.temp }}/msys64/mingw64/bin/x86_64-w64-mingw32-cpp \
+        AR=${{ runner.temp }}/msys64/mingw64/bin/x86_64-w64-mingw32-ar \
+        LD=${{ runner.temp }}/msys64/mingw64/bin/x86_64-w64-mingw32-ld \
+        NM=${{ runner.temp }}/msys64/mingw64/bin/x86_64-w64-mingw32-nm \
+        AS=${{ runner.temp }}/msys64/mingw64/bin/x86_64-w64-mingw32-as \
+        STRIP=${{ runner.temp }}/msys64/mingw64/bin/x86_64-w64-mingw32-strip \
+        WINRC=${{ runner.temp }}/msys64/mingw64/bin/x86_64-w64-mingw32-windres \
+        RANLIB=${{ runner.temp }}/msys64/mingw64/bin/x86_64-w64-mingw32-ranlib \
+        DLLTOOL=${{ runner.temp }}/msys64/mingw64/bin/x86_64-w64-mingw32-dlltool \
+        XARCH="x86_64" \
+        MSYSTEM="" \
+        LDFLAGS="-lbcrypt" \
+        CFLAGS="-mstackrealign" \
+        CXXFLAGS="-mstackrealign" \
+        ./waf configure  \
+          --dist-target=mingw \
+          --prefix=/mingw64 \
+          --configdir=/share \
+          --optimize \
+          --windows-vst \
+          --with-backends=portaudio,dummy \
+          --cxx11
+
+    - name: Upload configure log
+      uses: actions/upload-artifact@v3
+      if: failure()
+      with:
+        name: failed-configure-logs
+        path: ardour/build
+
+    - name: Build Ardour
+      working-directory: ./ardour
+      run: XARCH="x86_64" MSYSTEM="" ./waf
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: ardour-build-windows
+        path: ardour/build

@@ -1,0 +1,73 @@
+From f1055c2f2adca4a8056a197937fa789db2b2c72b Mon Sep 17 00:00:00 2001
+From: Robin Windey <ro.windey@gmail.com>
+Date: Sat, 4 Feb 2023 16:51:18 +0000
+Subject: [PATCH] Win patch Ardour 7.2
+
+---
+ gtk2_ardour/main.cc | 6 +++---
+ libs/pbd/pbd.cc     | 6 +++---
+ tools/fmt-bindings  | 6 ++++--
+ 3 files changed, 10 insertions(+), 8 deletions(-)
+
+diff --git a/gtk2_ardour/main.cc b/gtk2_ardour/main.cc
+index a1a00c2055..42b526b730 100644
+--- a/gtk2_ardour/main.cc
++++ b/gtk2_ardour/main.cc
+@@ -261,9 +261,9 @@ int main (int argc, char *argv[])
+ 
+ 	load_custom_fonts(); /* needs to happen before any gtk and pango init calls */
+ 
+-	if (!Glib::thread_supported()) {
+-		Glib::thread_init();
+-	}
++	// if (!Glib::thread_supported()) {
++	// 	Glib::thread_init();
++	// }
+ 
+ #ifdef LXVST_SUPPORT
+ 	XInitThreads ();
+diff --git a/libs/pbd/pbd.cc b/libs/pbd/pbd.cc
+index 67b6b2adb1..edfd8afada 100644
+--- a/libs/pbd/pbd.cc
++++ b/libs/pbd/pbd.cc
+@@ -86,9 +86,9 @@ PBD::init ()
+ 	}
+ #endif
+ 
+-	if (!Glib::thread_supported()) {
+-		Glib::thread_init();
+-	}
++	// if (!Glib::thread_supported()) {
++	// 	Glib::thread_init();
++	// }
+ 
+ 	Gio::init ();
+ 
+diff --git a/tools/fmt-bindings b/tools/fmt-bindings
+index f7b569a7f0..8e4721ca49 100755
+--- a/tools/fmt-bindings
++++ b/tools/fmt-bindings
+@@ -4,6 +4,7 @@
+ use Getopt::Long; 
+ use File::Basename;
+ use File::Spec;
++use Cwd;
+     
+ $semicolon = ";"; # help out stupid emacs
+ $title = "Ardour Shortcuts";
+@@ -337,9 +338,10 @@ if ($make_accelmap) {
+     # merge in the "fixed" bindings that are not defined by the argument given to this program
+     # this covers things like the step editor, monitor and processor box bindings
+ 
++    my $cwd = getcwd();
+     foreach $hardcoded_bindings ("mixer.bindings", "step_editing.bindings", "monitor.bindings", "processor_box.bindings", "trigger.bindings") {
+-	$path = File::Spec->catfile (dirname ($ARGV[0]), $hardcoded_bindings);
+-	open HARDCODED, "<", $path or die $!;
++	$path = File::Spec->catfile ($cwd, "../gtk2_ardour", $hardcoded_bindings);
++    open HARDCODED, "<", $path or die "(CWD: $cwd) Cannot open file '$path': $!";
+ 	while (<HARDCODED>) {
+ 	    print $_;
+ 	}
+-- 
+2.25.1
+
